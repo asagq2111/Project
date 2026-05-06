@@ -97,5 +97,9 @@ def pending():
     conn.close()
     return jsonify({"reports": [dict(r) for r in rows]})
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"status": "alive"}), 200
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
