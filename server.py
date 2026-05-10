@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from datetime import datetime
-from predictor import get_diagnosis_text, teach_model
+from predictor import get_diagnosis_text, teach_model, get_statistics
 import sqlite3
 import json
 import os
@@ -84,11 +84,32 @@ def start_session():
 
 @app.route('/report/<int:session_id>', methods=['GET'])
 def get_report(session_id):
+
     conn = get_db()
-    row = conn.execute("SELECT r.*, s.raw_data FROM reports r JOIN sessions s ON r.session_id = s.id WHERE r.session_id = ?", (session_id,)).fetchone()
+
+    row = conn.execute("""
+        SELECT r.*, s.raw_data
+        FROM reports r
+        JOIN sessions s ON r.session_id = s.id
+        WHERE r.session_id = ?
+        ORDER BY r.created_at DESC
+        LIMIT 1
+    """, (session_id,)).fetchone()
+
     conn.close()
-    if not row: return jsonify({"ai_conclusion": "None"}), 200
-    return jsonify(dict(row))
+
+    if not row:
+        return jsonify({
+            "ai_conclusion": "None"
+        }), 200
+
+    return jsonify({
+        "session_id": session_id,
+        "ai_conclusion": row['ai_conclusion'],
+        "doctor_conclusion": row['doctor_conclusion'],
+        "status": row['status'],
+        "raw_data": json.loads(row['raw_data']) if row['raw_data'] else {}
+    })
 
 @app.route('/pending_reports', methods=['GET'])
 def pending():
@@ -97,9 +118,72 @@ def pending():
     conn.close()
     return jsonify({"reports": [dict(r) for r in rows]})
 
+@app.route('/teach', methods=['POST'])
+def teach_endpoint():
+    try:
+        data = request.get_json()
+
+        session_id = data.get('session_id')
+        correct_state = data.get('correct_state')
+
+        conn = get_db()
+
+        row = conn.execute(
+            "SELECT raw_data FROM sessions WHERE id = ?",
+            (session_id,)
+        ).fetchone()
+
+        if not row:
+            conn.close()
+            return jsonify({"error": "Session not found"}), 404
+
+        raw_data = json.loads(row['raw_data'])
+
+        pulse = raw_data.get('pulse')
+        rhythm = raw_data.get('rhythm')
+        emg = raw_data.get('emg')
+        alpha = raw_data.get('alpha')
+        beta = raw_data.get('beta')
+
+        success = teach_model(
+            pulse,
+            rhythm,
+            emg,
+            alpha,
+            beta,
+            correct_state
+        )
+
+        if success:
+            conn.execute(
+                """
+                UPDATE reports
+                SET status='reviewed',
+                    doctor_conclusion=?
+                WHERE session_id=?
+                """,
+                (correct_state, session_id)
+            )
+
+            conn.commit()
+
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "trained": success
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "alive"}), 200
-    
+
+@app.route('/statistics', methods=['GET'])
+def statistics():
+    return jsonify(get_statistics())
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
