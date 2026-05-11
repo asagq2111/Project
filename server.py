@@ -49,7 +49,22 @@ def upload_data():
             cursor.execute("SELECT id FROM sessions WHERE user_id = ? AND status = 'waiting_data' ORDER BY created_at DESC LIMIT 1", (user_id,))
             session = cursor.fetchone()
 
-        raw_json = json.dumps({"pulse": pulse, "rhythm": rhythm, "emg": emg, "alpha": alpha, "beta": beta},ensure_ascii=False)
+        print("RHYTHM:", rhythm)
+        print("RAW JSON:", json.dumps({
+            "pulse": pulse,
+            "rhythm": rhythm,
+            "emg": emg,
+            "alpha": alpha,
+            "beta": beta
+        }, ensure_ascii=False))
+
+        raw_json = json.dumps({
+            "pulse": pulse,
+            "rhythm": rhythm,
+            "emg": emg,
+            "alpha": alpha,
+            "beta": beta
+        }, ensure_ascii=False)
 
         if session:
             target_id = session['id']
