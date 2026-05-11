@@ -39,27 +39,27 @@ class InteractiveDoctorAI:
         """Загружает медицинские правила из PDF"""
         
         base_examples = [
-            (72, "синусовый", 12, 65, 30, "Normal"),
-            (75, "синусовый", 15, 70, 35, "Normal"),
-            (80, "синусовый", 10, 60, 25, "Normal"),
-            (85, "синусовый", 45, 40, 50, "Tension"),
-            (90, "синусовый", 50, 35, 55, "Tension"),
-            (88, "синусовый", 40, 45, 45, "Tension"),
-            (78, "синусовый", 25, 40, 30, "Fatigue"),
-            (82, "синусовый", 30, 35, 35, "Fatigue"),
-            (75, "синусовый", 20, 45, 25, "Fatigue"),
-            (68, "синусовый", 12, 65, 30, "Recovery"),
-            (65, "синусовый", 10, 70, 25, "Recovery"),
-            (70, "синусовый", 15, 60, 35, "Recovery"),
-            (100, "синусовый", 70, 20, 75, "Stress"),
-            (105, "синусовый", 75, 15, 80, "Stress"),
-            (95, "синусовый", 65, 25, 70, "Stress"),
-            (105, "синусовый", 90, 10, 90, "Overload"),
-            (110, "синусовый", 95, 5, 95, "Overload"),
-            (100, "синусовый", 85, 15, 85, "Overload"),
-            (150, "аритмичный", 35, 30, 45, "Arrhythmia"),
-            (160, "аритмичный", 40, 25, 50, "Arrhythmia"),
-            (140, "аритмичный", 30, 35, 40, "Arrhythmia"),
+            (72, "sinus", 12, 65, 30, "Normal"),
+            (75, "sinus", 15, 70, 35, "Normal"),
+            (80, "sinus", 10, 60, 25, "Normal"),
+            (85, "sinus", 45, 40, 50, "Tension"),
+            (90, "sinus", 50, 35, 55, "Tension"),
+            (88, "sinus", 40, 45, 45, "Tension"),
+            (78, "sinus", 25, 40, 30, "Fatigue"),
+            (82, "sinus", 30, 35, 35, "Fatigue"),
+            (75, "sinus", 20, 45, 25, "Fatigue"),
+            (68, "sinus", 12, 65, 30, "Recovery"),
+            (65, "sinus", 10, 70, 25, "Recovery"),
+            (70, "sinus", 15, 60, 35, "Recovery"),
+            (100, "sinus", 70, 20, 75, "Stress"),
+            (105, "sinus", 75, 15, 80, "Stress"),
+            (95, "sinus", 65, 25, 70, "Stress"),
+            (105, "sinus", 90, 10, 90, "Overload"),
+            (110, "sinus", 95, 5, 95, "Overload"),
+            (100, "sinus", 85, 15, 85, "Overload"),
+            (150, "arrhythmic", 35, 30, 45, "Arrhythmia"),
+            (160, "arrhythmic", 40, 25, 50, "Arrhythmia"),
+            (140, "arrhythmic", 30, 35, 40, "Arrhythmia"),
         ]
         
         for pulse, rhythm, emg, alpha, beta, state in base_examples:
@@ -80,8 +80,9 @@ class InteractiveDoctorAI:
         X_scaled = self.scaler.fit_transform(X)
         
         self.model = RandomForestClassifier(
-            n_estimators=50,
-            max_depth=8,
+            n_estimators=200,
+            max_depth=12,
+            class_weight='balanced',
             random_state=42
         )
         self.model.fit(X_scaled, y)
@@ -103,7 +104,7 @@ class InteractiveDoctorAI:
         if not self.is_fitted or self.model is None:
             return {"state": "Недостаточно данных", "confidence": 0, "need_training": True}
         
-        rhythm_val = 1 if rhythm.lower() == "синусовый" else 0
+        rhythm_val = 1 if rhythm.lower() == "sinus" else 0
         features = np.array([[pulse, rhythm_val, emg, alpha, beta]])
         features_scaled = self.scaler.transform(features)
         
@@ -123,7 +124,7 @@ class InteractiveDoctorAI:
             print(f"❌ Неизвестное состояние: {correct_state}")
             return False
         
-        rhythm_val = 1 if rhythm.lower() == "синусовый" else 0
+        rhythm_val = 1 if rhythm.lower() == "sinus" else 0
         self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
         self.y_train.append(self.STATES.index(correct_state))
         
@@ -133,6 +134,47 @@ class InteractiveDoctorAI:
         print(f"📊 Точность: {accuracy*100:.1f}% на {len(self.X_train)} примерах")
         
         return True
+    
+
+    # ↓↓↓ ВСТАВЬ НОВЫЙ МЕТОД ЗДЕСЬ ↓↓↓
+    def generate_synthetic_data(self, count=100):
+        import random
+        
+        templates = {
+            "Normal": {"pulse": (60, 90), "rhythm": "синусовый", "emg": (5, 25), "alpha": (50, 80), "beta": (20, 40)},
+            "Tension": {"pulse": (80, 95), "rhythm": "синусовый", "emg": (35, 60), "alpha": (30, 50), "beta": (40, 65)},
+            "Fatigue": {"pulse": (70, 85), "rhythm": "синусовый", "emg": (15, 40), "alpha": (35, 55), "beta": (25, 45)},
+            "Recovery": {"pulse": (60, 75), "rhythm": "синусовый", "emg": (8, 20), "alpha": (55, 80), "beta": (20, 35)},
+            "Stress": {"pulse": (90, 110), "rhythm": "синусовый", "emg": (55, 80), "alpha": (15, 35), "beta": (60, 85)},
+            "Overload": {"pulse": (95, 115), "rhythm": "синусовый", "emg": (75, 95), "alpha": (5, 20), "beta": (80, 95)},
+            "Arrhythmia": {"pulse": (120, 170), "rhythm": "аритмичный", "emg": (25, 55), "alpha": (20, 40), "beta": (35, 60)}
+        }
+        
+        added = 0
+        for state, params in templates.items():
+            for _ in range(count):
+                pulse = random.randint(*params["pulse"])
+                rhythm = params["rhythm"]
+                emg = random.randint(*params["emg"])
+                alpha = random.randint(*params["alpha"])
+                beta = random.randint(*params["beta"])
+                
+                total = alpha + beta
+                if total > 100:
+                    alpha = int(alpha * 100 / total)
+                    beta = 100 - alpha
+                
+                rhythm_val = 1 if rhythm == "синусовый" else 0
+                self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
+                self.y_train.append(self.STATES.index(state))
+                added += 1
+        
+        accuracy = self._train_model()
+        self.save()
+        print(f"✅ Сгенерировано {added} примеров (по {count} на каждое состояние)")
+        print(f"📊 Всего примеров: {len(self.X_train)}")
+        print(f"🎯 Точность: {accuracy*100:.1f}%")
+    # ↑↑↑ КОНЕЦ НОВОГО МЕТОДА ↑↑↑
     
     def save(self, filename="ai_model.pkl"):
         data = {

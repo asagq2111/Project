@@ -34,7 +34,7 @@ def upload_data():
         session_id = data.get('session_id') # Читаем ID сессии из запроса
         
         # Параметры для ИИ
-        pulse, rhythm = data.get('pulse'), data.get('rhythm', 'синусовый')
+        pulse, rhythm = data.get('pulse'), data.get('rhythm', 'sinus')
         emg, alpha, beta = data.get('emg'), data.get('alpha'), data.get('beta')
 
         conn = get_db()
