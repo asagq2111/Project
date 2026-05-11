@@ -6,7 +6,8 @@ from Prikolchik import InteractiveDoctorAI
 ai = InteractiveDoctorAI()
 
 # Загружаем сохранённую модель (если есть)
-model_file = "ai_model.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+model_file = os.path.join(BASE_DIR, "ai_model.pkl")
 if os.path.exists(model_file):
     ai.load(model_file)
     print(f"📀 ИИ загружен: {len(ai.X_train)} примеров")
