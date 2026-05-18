@@ -182,14 +182,15 @@ try:
             user_id = event.obj.message['from_id']
             text = event.obj.message['text'].strip()
             payload = event.obj.message.get('payload')
-            
+
             str_uid = str(user_id)
-            
-            # Регистрация нового пользователя
+
+            # ==================== РЕГИСТРАЦИЯ / ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ ====================
+
             if str_uid not in users_db:
                 users_db[str_uid] = {"role": None}
                 save_users(users_db)
-                
+
                 vk.messages.send(
                     user_id=user_id,
                     message="👋 Приветствую в системе Digital Doctor! Кто вы?",
@@ -198,7 +199,28 @@ try:
                 )
                 continue
 
-            user_role = users_db[str_uid].get("role")
+            # Безопасная обработка структуры users.json
+            user_data = users_db.get(str_uid)
+
+            # Если данных нет
+            if user_data is None:
+                users_db[str_uid] = {"role": None}
+                save_users(users_db)
+                user_data = users_db[str_uid]
+
+            # Если старый формат: "patient" / "doctor"
+            elif isinstance(user_data, str):
+                users_db[str_uid] = {"role": user_data}
+                save_users(users_db)
+                user_data = users_db[str_uid]
+
+            # Если файл повреждён
+            elif not isinstance(user_data, dict):
+                users_db[str_uid] = {"role": None}
+                save_users(users_db)
+                user_data = users_db[str_uid]
+
+            user_role = user_data.get("role")
 
             # --- ОБРАБОТКА ИНЛАЙН/PAYLOAD КНОПОК ДЛЯ ВРАЧА (ОБУЧЕНИЕ ИИ) ---
             if payload:
@@ -206,162 +228,189 @@ try:
                     payload_data = json.loads(payload)
                     command = payload_data.get("command")
                     sid = payload_data.get("session_id")
-                    
+
                     # 1. Врач подтвердил выбор ИИ
                     if command == "approve_conclusion":
-                        res = call_server("approve", method="POST", data={"session_id": sid})
+                        res = call_server(
+                            "approve",
+                            method="POST",
+                            data={"session_id": sid}
+                        )
+
                         if res.get("status") == "success":
-                            msg = f"✅ Спасибо! Диагноз для сессии #{sid} подтвержден. ИИ зафиксировал этот случай как эталонный."
+                            msg = (
+                                f"✅ Спасибо! Диагноз для сессии #{sid} "
+                                f"подтвержден. ИИ зафиксировал этот случай как эталонный."
+                            )
                         else:
-                            msg = f"❌ Не удалось отправить подтверждение на сервер: {res.get('error', 'ошибка сервера')}"
-                            
+                            msg = (
+                                f"❌ Не удалось отправить подтверждение "
+                                f"на сервер: {res.get('error', 'ошибка сервера')}"
+                            )
+
                         vk.messages.send(
-                            user_id=user_id, message=msg,
-                            keyboard=get_doctor_keyboard(), random_id=get_random_id()
+                            user_id=user_id,
+                            message=msg,
+                            keyboard=get_doctor_keyboard(),
+                            random_id=get_random_id()
                         )
                         continue
-                    
-                    # 2. Врач нажал кнопку "Исправить" -> показываем список вариантов
+
+                    # 2. Врач нажал "Исправить"
                     elif command == "show_fix_menu":
                         vk.messages.send(
                             user_id=user_id,
-                            message=f"🛠 Выберите правильный диагноз для сессии #{sid}. ИИ пересчитает веса модели:",
+                            message=(
+                                f"🛠 Выберите правильный диагноз "
+                                f"для сессии #{sid}:"
+                            ),
                             keyboard=get_fix_keyboard(sid),
                             random_id=get_random_id()
                         )
                         continue
-                    
-                    # 3. Врач выбрал конкретное состояние для исправления -> дообучаем модель
+
+                    # 3. Дообучение модели
                     elif command == "fix_conclusion":
                         correct_state = payload_data.get("state")
-                        
+
                         teach_res = call_server(
-                            "teach", 
-                            method="POST", 
-                            data={"session_id": sid, "correct_state": correct_state}
+                            "teach",
+                            method="POST",
+                            data={
+                                "session_id": sid,
+                                "correct_state": correct_state
+                            }
                         )
-                        
+
                         if teach_res.get("trained"):
                             msg = (
-                                f"🎯 Модель успешно дообучена на ошибке!\n\n"
+                                f"🎯 Модель успешно дообучена!\n\n"
                                 f"Сессия: #{sid}\n"
-                                f"Новый эталонный диагноз: {correct_state}"
+                                f"Правильный диагноз: {correct_state}"
                             )
                         else:
-                            msg = f"❌ Ошибка дообучения ИИ: {teach_res.get('error', 'Данные сессии повреждены')}"
-                            
+                            msg = (
+                                f"❌ Ошибка дообучения: "
+                                f"{teach_res.get('error', 'неизвестная ошибка')}"
+                            )
+
                         vk.messages.send(
-                            user_id=user_id, message=msg,
-                            keyboard=get_doctor_keyboard(), random_id=get_random_id()
+                            user_id=user_id,
+                            message=msg,
+                            keyboard=get_doctor_keyboard(),
+                            random_id=get_random_id()
                         )
                         continue
-                        
-                except Exception as ex:
-                    print(f"Ошибка парсинга payload кнопок: {ex}")
 
-            # --- СТАНДАРТНАЯ НАВИГАЦИЯ И КОМАНДЫ ---
+                except Exception as ex:
+                    print(f"Ошибка payload: {ex}")
+
+            # ==================== НАВИГАЦИЯ ====================
+
             if text == "Я Пациент":
                 users_db[str_uid]["role"] = "patient"
                 save_users(users_db)
+
                 vk.messages.send(
-                    user_id=user_id, message="Вы зашли как Пациент.",
-                    keyboard=get_patient_keyboard(), random_id=get_random_id()
+                    user_id=user_id,
+                    message="Вы зашли как Пациент.",
+                    keyboard=get_patient_keyboard(),
+                    random_id=get_random_id()
                 )
-                
+
             elif text == "Я Врач":
                 users_db[str_uid]["role"] = "doctor"
                 save_users(users_db)
+
                 vk.messages.send(
-                    user_id=user_id, message="Вы зашли как Врач.",
-                    keyboard=get_doctor_keyboard(), random_id=get_random_id()
+                    user_id=user_id,
+                    message="Вы зашли как Врач.",
+                    keyboard=get_doctor_keyboard(),
+                    random_id=get_random_id()
                 )
-                
+
             elif text == "🔄 Сменить роль":
                 users_db[str_uid]["role"] = None
                 save_users(users_db)
+
                 vk.messages.send(
-                    user_id=user_id, message="Выберите роль заново:",
-                    keyboard=get_role_keyboard(), random_id=get_random_id()
+                    user_id=user_id,
+                    message="Выберите роль заново:",
+                    keyboard=get_role_keyboard(),
+                    random_id=get_random_id()
                 )
 
-            # --- ЛОГИКА ПАЦИЕНТА ---
+            # ==================== ПАЦИЕНТ ====================
+
             elif text == "🤖 Начать обследование" and user_role == "patient":
-                # Запрашиваем у бэкенда создание новой сессии для генерации ID
-                res = call_server("upload_batch", method="POST", data={"user_id": user_id, "frames": [{"pulse": 70, "rhythm": "sinus", "emg": 0, "alpha": 50, "beta": 50}]})
-                
-                # Костыль для первичной инициализации ID сессии бэкендом
-                # В идеале у вас должен быть эндпоинт /create_session, но используем текущую архитектуру базы
-                # Делаем хак: берем статус, если ок, то сессия существует.
-                # Для стабильности выведем случайное число, если бэкенд не вернул ID, но лучше завязаться на логику инкремента
-                
-                # Чтобы узнать ID последней созданной сессии, сделаем запрос или создадим её.
-                # Предположим, сервер при успешной генерации вернул статус. Для надежности выведем инструкцию:
-                
-                # ВНИМАНИЕ: Чтобы бот точно знал ID создаваемой строки, 
-                # ваш сервер в sqlite должен возвращать cursor.lastrowid. 
-                # Предположим, что вы используете сессию. Напишем пациенту уведомление:
-                
-                # Мы можем сгенерировать временный ID на основе timestamp, но в вашей базе данных используется AUTOINCREMENT.
-                # Сделаем запрос к серверу (можно ориентироваться на статистику или статический шаг)
-                
-                # Идеальный вариант: сервер возвращает созданный сеанс. Если нет, выводим последнее известное число.
-                session_id_placeholder = int(time.time()) % 100000  
-                
+
+                session_id_placeholder = int(time.time()) % 100000
+
                 vk.messages.send(
                     user_id=user_id,
                     message=(
-                        f"⏳ Сессия обследования успешно создана на сервере.\n\n"
-                        f"🔑 Ваш ТОКЕН СЕССИИ: {session_id_placeholder}\n"
-                        f"(Если сервер выдал ошибку, используйте ID вашей последней строки в БД).\n\n"
-                        f"Введите этот номер в эмулятор Lalalala.py на ПК и включите ESP32. "
-                        f"У вас есть 5 минут на передачу пакетов датчиков."
+                        f"⏳ Сессия обследования создана.\n\n"
+                        f"🔑 ТОКЕН СЕССИИ: {session_id_placeholder}\n\n"
+                        f"Введите этот номер в эмулятор."
                     ),
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id()
                 )
-                
-                # Запускаем поток асинхронного ожидания данных от UDP-скрипта
+
                 threading.Thread(
-                    target=check_session_status, 
-                    args=(vk, user_id, session_id_placeholder), 
+                    target=check_session_status,
+                    args=(vk, user_id, session_id_placeholder),
                     daemon=True
                 ).start()
 
             elif text == "📊 Моя статистика" and user_role == "patient":
+
                 vk.messages.send(
                     user_id=user_id,
-                    message="📈 Запрос вашей медицинской карты обрабатывается... (Функция в разработке)",
+                    message="📈 Функция статистики пока в разработке.",
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id()
                 )
 
-            # --- ЛОГИКА ВРАЧА ---
+            # ==================== ВРАЧ ====================
+
             elif text == "🔎 Посмотреть статистику ИИ" and user_role == "doctor":
+
                 stats_res = call_server("stats", method="GET")
-                
+
                 total_samples = stats_res.get("total_samples", 0)
                 history_len = len(stats_res.get("training_history", []))
-                
+
                 msg = (
-                    f"📊 МЕТРИКИ ОБУЧЕНИЯ ДВИЖКА ИИ:\n"
-                    f"─ Всего прецедентов в базе знаний: {total_samples}\n"
-                    f"─ Кол-во итераций дообучения: {history_len}\n\n"
-                    f"Система активна и принимает корректировки от персонала."
+                    f"📊 СТАТИСТИКА ИИ:\n"
+                    f"─ Прецедентов: {total_samples}\n"
+                    f"─ Дообучений: {history_len}"
                 )
-                vk.messages.send(
-                    user_id=user_id, message=msg,
-                    keyboard=get_doctor_keyboard(), random_id=get_random_id()
-                )
-                
-            else:
-                # Ответ на любой нераспознанный текст
-                current_kb = get_patient_keyboard() if user_role == "patient" else (get_doctor_keyboard() if user_role == "doctor" else get_role_keyboard())
+
                 vk.messages.send(
                     user_id=user_id,
-                    message="❓ Команда не распознана. Используйте меню кнопок на клавиатуре.",
+                    message=msg,
+                    keyboard=get_doctor_keyboard(),
+                    random_id=get_random_id()
+                )
+
+            else:
+                current_kb = (
+                    get_patient_keyboard()
+                    if user_role == "patient"
+                    else (
+                        get_doctor_keyboard()
+                        if user_role == "doctor"
+                        else get_role_keyboard()
+                    )
+                )
+
+                vk.messages.send(
+                    user_id=user_id,
+                    message="❓ Команда не распознана.",
                     keyboard=current_kb,
                     random_id=get_random_id()
                 )
 
-except Exception as e:
+except Exception:
     print(f"Критический сбой цикла LongPoll: {traceback.format_exc()}")
