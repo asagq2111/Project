@@ -118,12 +118,16 @@ def get_report(session_id):
             "ai_conclusion": "None"
         }), 200
 
+    raw = json.loads(row['raw_data']) if row['raw_data'] else []
+
+    last_frame = raw[-1] if isinstance(raw, list) and raw else raw
+
     return jsonify({
         "session_id": session_id,
         "ai_conclusion": row['ai_conclusion'],
         "doctor_conclusion": row['doctor_conclusion'],
         "status": row['status'],
-        "raw_data": json.loads(row['raw_data']) if row['raw_data'] else {}
+        "raw_data": last_frame
     })
 
 @app.route('/pending_reports', methods=['GET'])
@@ -153,6 +157,9 @@ def teach_endpoint():
             return jsonify({"error": "Session not found"}), 404
 
         raw_data = json.loads(row['raw_data'])
+
+        if isinstance(raw_data, list):
+            raw_data = raw_data[-1]
 
         pulse = raw_data.get('pulse')
         rhythm = raw_data.get('rhythm')
@@ -199,6 +206,56 @@ def health():
 @app.route('/statistics', methods=['GET'])
 def statistics():
     return jsonify(get_statistics())
+
+@app.route('/upload_batch', methods=['POST'])
+def upload_batch():
+    try:
+        data = request.get_json()
+
+        user_id = data.get("user_id")
+        frames = data.get("frames", [])
+
+        if not frames:
+            return jsonify({"error": "No frames"}), 400
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # создаём сессию
+        cursor.execute(
+            "INSERT INTO sessions (user_id, status, raw_data) VALUES (?, 'data_received', ?)",
+            (user_id, json.dumps(frames, ensure_ascii=False))
+        )
+
+        session_id = cursor.lastrowid
+
+        # берём последний кадр для ИИ
+        last = frames[-1]
+
+        ai_conclusion = get_diagnosis_text(
+            last["pulse"],
+            last["rhythm"],
+            last["emg"],
+            last["alpha"],
+            last["beta"]
+        )
+
+        cursor.execute(
+            "INSERT INTO reports (session_id, ai_conclusion, status) VALUES (?, ?, 'pending')",
+            (session_id, ai_conclusion)
+        )
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "status": "success",
+            "session_id": session_id,
+            "frames_received": len(frames)
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

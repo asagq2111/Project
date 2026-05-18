@@ -63,7 +63,7 @@ class InteractiveDoctorAI:
         ]
         
         for pulse, rhythm, emg, alpha, beta, state in base_examples:
-            rhythm_val = 1 if rhythm == "синусовый" else 0
+            rhythm_val = 1 if rhythm == "sinus" else 0
             self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
             self.y_train.append(self.STATES.index(state))
         
@@ -141,13 +141,13 @@ class InteractiveDoctorAI:
         import random
         
         templates = {
-            "Normal": {"pulse": (60, 90), "rhythm": "синусовый", "emg": (5, 25), "alpha": (50, 80), "beta": (20, 40)},
-            "Tension": {"pulse": (80, 95), "rhythm": "синусовый", "emg": (35, 60), "alpha": (30, 50), "beta": (40, 65)},
-            "Fatigue": {"pulse": (70, 85), "rhythm": "синусовый", "emg": (15, 40), "alpha": (35, 55), "beta": (25, 45)},
-            "Recovery": {"pulse": (60, 75), "rhythm": "синусовый", "emg": (8, 20), "alpha": (55, 80), "beta": (20, 35)},
-            "Stress": {"pulse": (90, 110), "rhythm": "синусовый", "emg": (55, 80), "alpha": (15, 35), "beta": (60, 85)},
-            "Overload": {"pulse": (95, 115), "rhythm": "синусовый", "emg": (75, 95), "alpha": (5, 20), "beta": (80, 95)},
-            "Arrhythmia": {"pulse": (120, 170), "rhythm": "аритмичный", "emg": (25, 55), "alpha": (20, 40), "beta": (35, 60)}
+            "Normal": {"pulse": (60, 90), "rhythm": "sinus", "emg": (5, 25), "alpha": (50, 80), "beta": (20, 40)},
+            "Tension": {"pulse": (80, 95), "rhythm": "sinus", "emg": (35, 60), "alpha": (30, 50), "beta": (40, 65)},
+            "Fatigue": {"pulse": (70, 85), "rhythm": "sinus", "emg": (15, 40), "alpha": (35, 55), "beta": (25, 45)},
+            "Recovery": {"pulse": (60, 75), "rhythm": "sinus", "emg": (8, 20), "alpha": (55, 80), "beta": (20, 35)},
+            "Stress": {"pulse": (90, 110), "rhythm": "sinus", "emg": (55, 80), "alpha": (15, 35), "beta": (60, 85)},
+            "Overload": {"pulse": (95, 115), "rhythm": "sinus", "emg": (75, 95), "alpha": (5, 20), "beta": (80, 95)},
+            "Arrhythmia": {"pulse": (120, 170), "rhythm": "arrhythmia", "emg": (25, 55), "alpha": (20, 40), "beta": (35, 60)}
         }
         
         added = 0
@@ -164,7 +164,7 @@ class InteractiveDoctorAI:
                     alpha = int(alpha * 100 / total)
                     beta = 100 - alpha
                 
-                rhythm_val = 1 if rhythm == "синусовый" else 0
+                rhythm_val = 1 if rhythm == "sinus" else 0
                 self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
                 self.y_train.append(self.STATES.index(state))
                 added += 1
