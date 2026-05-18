@@ -213,7 +213,8 @@ def upload_batch():
         data = request.get_json()
 
         user_id = data.get("user_id")
-        frames = data.get("frames", [])
+        session_id = data.get("session_id")
+        frames = data.get("frames", [])   
 
         if not frames:
             return jsonify({"error": "No frames"}), 400
@@ -223,11 +224,16 @@ def upload_batch():
 
         # создаём сессию
         cursor.execute(
-            "INSERT INTO sessions (user_id, status, raw_data) VALUES (?, 'data_received', ?)",
-            (user_id, json.dumps(frames, ensure_ascii=False))
+        """
+        UPDATE sessions
+        SET raw_data = ?, status = 'data_received'
+        WHERE id = ?
+        """,
+        (
+            json.dumps(frames, ensure_ascii=False),
+            session_id
         )
-
-        session_id = cursor.lastrowid
+    )
 
         # берём последний кадр для ИИ
         last = frames[-1]

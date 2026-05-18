@@ -205,39 +205,48 @@ def notify_all_doctors(session_id):
 
 # ==================== ПРОВЕРКА СТАТУСА ====================
 
-def check_session_status(user_id, session_id):
-
-    for _ in range(30):
-
-        time.sleep(10)
-
-        report = call_server(f"report/{session_id}")
-
-        if "error" in report:
-            continue
-
-        conclusion = report.get("ai_conclusion")
-
-        if conclusion and conclusion != "None":
-
-            vk.messages.send(
-                user_id=user_id,
-                message=(
-                    f"📊 Отчет #{session_id} готов!\n\n"
-                    f"ИИ говорит:\n"
-                    f"{conclusion}\n\n"
-                    f"Ваши данные переданы врачу."
-                ),
-                random_id=get_random_id()
-            )
-
-            notify_all_doctors(session_id)
-
-            return
-
+def check_session_status(vk, user_id, session_id):
+    start_time = time.time()
+    timeout = 300  # 5 минут ожидания
+    
+    print(f"[THREAD] Начат мониторинг статуса для сессии #{session_id}")
+    
+    while time.time() - start_time < timeout:
+        try:
+            res = call_server(f"session_status/{session_id}")
+            
+            # Как только UDP-сервер загрузил пачку кадров на Flask-сервер:
+            if res.get("status") == "data_received":
+                # Запрашиваем данные отчета (там уже лежит вердикт ИИ)
+                report_res = call_server(f"get_report/{session_id}")
+                
+                # Достаем текст заключения ИИ. Если его нет, пишем дефолтный текст
+                ai_text = report_res.get("ai_conclusion", "Анализ успешно завершен.")
+                
+                msg = (
+                    f"✅ Данные с эмулятора ESP успешно получены!\n\n"
+                    f"🤖 Предварительное заключение ИИ:\n{ai_text}\n\n"
+                    f"⏳ Статус: Отчет отправлен на модерацию дежурному врачу."
+                )
+                
+                vk.messages.send(
+                    user_id=user_id,
+                    message=msg,
+                    keyboard=get_patient_keyboard(),
+                    random_id=get_random_id()
+                )
+                return  # Успешно выходим из функции и завершаем поток ожидания!
+                
+        except Exception as e:
+            print(f"[THREAD ERROR] Ошибка при проверке статуса: {e}")
+            
+        time.sleep(10)  # Проверяем каждые 10 секунд
+        
+    # Если за 5 минут статус так и не сменился на 'data_received'
     vk.messages.send(
         user_id=user_id,
-        message="⚠️ Данные не получены. Тайм-аут.",
+        message="⚠️ Данные от эмулятора ESP не были получены в течение 5 минут. Время сессии истекло.",
+        keyboard=get_patient_keyboard(),
         random_id=get_random_id()
     )
 
