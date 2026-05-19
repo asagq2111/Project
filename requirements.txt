@@ -3,3 +3,5 @@ numpy
 scikit-learn
 requests
 gunicorn
+vk-api
+python-dotenv

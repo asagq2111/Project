@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+database.db
+users.json
+*.pkl
+received_data/*
+!received_data/.gitkeep
+venv/
+.venv/
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/
