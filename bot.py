@@ -133,7 +133,12 @@ def check_session_status(vk_client, user_id, session_id):
             res = call_server(f"session_status/{session_id}")
 
             if res.get("status") == "data_received":
-                report_res = call_server(f"get_report/{session_id}")
+                for attempt in range(5):
+                    report_res = call_server(f"get_report/{session_id}")
+                    if report_res.get("status") != "error":
+                        break
+                    time.sleep(1)
+
                 ai_text = report_res.get("ai_conclusion", "Анализ успешно завершён.")
 
                 msg_patient = (
@@ -234,6 +239,25 @@ try:
 
                         if res.get("status") == "success":
                             msg = f"Спасибо! Диагноз для сессии #{sid} подтверждён. ИИ записал этот случай как эталонный."
+
+                            patient_id = res.get("patient_id")
+                            final_diag = res.get("final_diagnosis")
+                            if patient_id and final_diag:
+                                patient_msg = (
+                                    f"Ваш результат обследования готов!\n\n"
+                                    f"Сессия: #{sid}\n"
+                                    f"Заключение врача: {final_diag}\n\n"
+                                    f"Спасибо, что пользуетесь Digital Doctor!"
+                                )
+                                try:
+                                    vk.messages.send(
+                                        user_id=patient_id,
+                                        message=patient_msg,
+                                        keyboard=get_patient_keyboard(),
+                                        random_id=get_random_id(),
+                                    )
+                                except Exception as e:
+                                    logger.warning("Failed to notify patient %s: %s", patient_id, e)
                         else:
                             msg = f"Не удалось отправить подтверждение на сервер: {res.get('error', 'server error')}"
 
@@ -264,6 +288,24 @@ try:
 
                         if teach_res.get("trained"):
                             msg = f"Модель успешно переобучена!\n\nСессия: #{sid}\nПравильный диагноз: {correct_state}"
+
+                            patient_id = teach_res.get("patient_id")
+                            if patient_id:
+                                patient_msg = (
+                                    f"Ваш результат обследования готов!\n\n"
+                                    f"Сессия: #{sid}\n"
+                                    f"Заключение врача: {correct_state}\n\n"
+                                    f"Спасибо, что пользуетесь Digital Doctor!"
+                                )
+                                try:
+                                    vk.messages.send(
+                                        user_id=patient_id,
+                                        message=patient_msg,
+                                        keyboard=get_patient_keyboard(),
+                                        random_id=get_random_id(),
+                                    )
+                                except Exception as e:
+                                    logger.warning("Failed to notify patient %s: %s", patient_id, e)
                         else:
                             msg = f"Ошибка переобучения: {teach_res.get('error', 'unknown error')}"
 

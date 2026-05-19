@@ -33,27 +33,27 @@ class InteractiveDoctorAI:
 
     def _load_base_knowledge(self):
         base_examples = [
-            (72, "sinus", 12, 65, 30, "Normal"),
-            (75, "sinus", 15, 70, 35, "Normal"),
-            (80, "sinus", 10, 60, 25, "Normal"),
-            (85, "sinus", 45, 40, 50, "Tension"),
-            (90, "sinus", 50, 35, 55, "Tension"),
-            (88, "sinus", 40, 45, 45, "Tension"),
-            (78, "sinus", 25, 40, 30, "Fatigue"),
-            (82, "sinus", 30, 35, 35, "Fatigue"),
-            (75, "sinus", 20, 45, 25, "Fatigue"),
-            (68, "sinus", 12, 65, 30, "Recovery"),
-            (65, "sinus", 10, 70, 25, "Recovery"),
-            (70, "sinus", 15, 60, 35, "Recovery"),
-            (100, "sinus", 70, 20, 75, "Stress"),
-            (105, "sinus", 75, 15, 80, "Stress"),
-            (95, "sinus", 65, 25, 70, "Stress"),
-            (105, "sinus", 90, 10, 90, "Overload"),
-            (110, "sinus", 95, 5, 95, "Overload"),
-            (100, "sinus", 85, 15, 85, "Overload"),
-            (150, "arrhythmic", 35, 30, 45, "Arrhythmia"),
-            (160, "arrhythmic", 40, 25, 50, "Arrhythmia"),
-            (140, "arrhythmic", 30, 35, 40, "Arrhythmia"),
+            (72, "sinus", 12, 65, 30, "Норма"),
+            (75, "sinus", 15, 70, 35, "Норма"),
+            (80, "sinus", 10, 60, 25, "Норма"),
+            (85, "sinus", 45, 40, 50, "Напряжение"),
+            (90, "sinus", 50, 35, 55, "Напряжение"),
+            (88, "sinus", 40, 45, 45, "Напряжение"),
+            (78, "sinus", 25, 40, 30, "Усталость"),
+            (82, "sinus", 30, 35, 35, "Усталость"),
+            (75, "sinus", 20, 45, 25, "Усталость"),
+            (68, "sinus", 12, 65, 30, "Восстановление"),
+            (65, "sinus", 10, 70, 25, "Восстановление"),
+            (70, "sinus", 15, 60, 35, "Восстановление"),
+            (100, "sinus", 70, 20, 75, "Стресс"),
+            (105, "sinus", 75, 15, 80, "Стресс"),
+            (95, "sinus", 65, 25, 70, "Стресс"),
+            (105, "sinus", 90, 10, 90, "Перегрузка"),
+            (110, "sinus", 95, 5, 95, "Перегрузка"),
+            (100, "sinus", 85, 15, 85, "Перегрузка"),
+            (150, "arrhythmic", 35, 30, 45, "Аритмия"),
+            (160, "arrhythmic", 40, 25, 50, "Аритмия"),
+            (140, "arrhythmic", 30, 35, 40, "Аритмия"),
         ]
 
         for pulse, rhythm, emg, alpha, beta, state in base_examples:
@@ -128,13 +128,13 @@ class InteractiveDoctorAI:
 
     def generate_synthetic_data(self, count=100):
         templates = {
-            "Normal": {"pulse": (60, 90), "rhythm": "sinus", "emg": (5, 25), "alpha": (50, 80), "beta": (20, 40)},
-            "Tension": {"pulse": (80, 95), "rhythm": "sinus", "emg": (35, 60), "alpha": (30, 50), "beta": (40, 65)},
-            "Fatigue": {"pulse": (70, 85), "rhythm": "sinus", "emg": (15, 40), "alpha": (35, 55), "beta": (25, 45)},
-            "Recovery": {"pulse": (60, 75), "rhythm": "sinus", "emg": (8, 20), "alpha": (55, 80), "beta": (20, 35)},
-            "Stress": {"pulse": (90, 110), "rhythm": "sinus", "emg": (55, 80), "alpha": (15, 35), "beta": (60, 85)},
-            "Overload": {"pulse": (95, 115), "rhythm": "sinus", "emg": (75, 95), "alpha": (5, 20), "beta": (80, 95)},
-            "Arrhythmia": {"pulse": (120, 170), "rhythm": "arrhythmia", "emg": (25, 55), "alpha": (20, 40), "beta": (35, 60)},
+            "Норма": {"pulse": (60, 90), "rhythm": "sinus", "emg": (5, 25), "alpha": (50, 80), "beta": (20, 40)},
+            "Напряжение": {"pulse": (80, 95), "rhythm": "sinus", "emg": (35, 60), "alpha": (30, 50), "beta": (40, 65)},
+            "Усталость": {"pulse": (70, 85), "rhythm": "sinus", "emg": (15, 40), "alpha": (35, 55), "beta": (25, 45)},
+            "Восстановление": {"pulse": (60, 75), "rhythm": "sinus", "emg": (8, 20), "alpha": (55, 80), "beta": (20, 35)},
+            "Стресс": {"pulse": (90, 110), "rhythm": "sinus", "emg": (55, 80), "alpha": (15, 35), "beta": (60, 85)},
+            "Перегрузка": {"pulse": (95, 115), "rhythm": "sinus", "emg": (75, 95), "alpha": (5, 20), "beta": (80, 95)},
+            "Аритмия": {"pulse": (120, 170), "rhythm": "arrhythmia", "emg": (25, 55), "alpha": (20, 40), "beta": (35, 60)},
         }
 
         added = 0

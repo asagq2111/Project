@@ -17,7 +17,7 @@ ESP32 (сенсоры) ──UDP──> udp_server.py ──HTTP──> server.p
 
 | Компонент | Описание |
 |-----------|----------|
-| `doctor_ai.py` | Ядро ИИ — `RandomForestClassifier` с 7 состояниями: Normal, Tension, Fatigue, Recovery, Stress, Overload, Arrhythmia |
+| `doctor_ai.py` | Ядро ИИ — `RandomForestClassifier` с 7 состояниями: Норма, Напряжение, Усталость, Восстановление, Стресс, Перегрузка, Аритмия |
 | `predictor.py` | Обёртка-синглтон вокруг модели ИИ: `analyze()`, `get_diagnosis_text()`, `teach_model()` |
 | `server.py` | REST API на Flask — управление сессиями, пакетная загрузка данных, диагностика ИИ, подтверждение/обучение врачами |
 | `bot.py` | VK-бот — запуск обследования пациентом, инлайн-клавиатуры для проверки врачами |

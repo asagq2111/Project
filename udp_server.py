@@ -1,3 +1,4 @@
+import os
 import socket
 import time
 import json
@@ -9,33 +10,12 @@ from datetime import datetime
 from dataclasses import dataclass, asdict
 from typing import Optional, Dict, List
 
+from dotenv import load_dotenv
+from doctor_ai import InteractiveDoctorAI
+
+load_dotenv()
+
 logger = logging.getLogger(__name__)
-
-
-class DigitalDoctorAI:
-    STATES = ["Normal", "Tension", "Fatigue", "Recovery", "Stress", "Overload", "Arrhythmia (AF)"]
-
-    def predict_state(self, pulse, rhythm, emg, alpha, beta):
-        if pulse > 140:
-            state = "Arrhythmia (AF)"
-            conf = 0.85
-        elif pulse > 95:
-            state = "Stress"
-            conf = 0.75
-        elif pulse > 85:
-            state = "Tension"
-            conf = 0.70
-        elif pulse > 70:
-            state = "Normal"
-            conf = 0.80
-        else:
-            state = "Recovery"
-            conf = 0.75
-        return {"state": state, "confidence": conf, "risk_level": "Medium"}
-
-    def generate_draft_report(self, patient_id, measurements):
-        return f"Report for {patient_id}"
-
 
 UDP_SEND_PORT = 5005
 UDP_RECV_PORT = 5006
@@ -51,8 +31,6 @@ emg_buffer = deque(maxlen=EMG_WINDOW)
 GSR_MIN = 500
 GSR_MAX = 3800
 
-SESSION_FILE = "patient_sessions.json"
-
 last_peak_time = 0
 bpm = 0.0
 stress = 50
@@ -61,15 +39,21 @@ alpha_ratio = 50
 beta_ratio = 50
 rhythm = "sinus"
 pulse_history = deque(maxlen=10)
-ESP_IP = "192.168.0.100"
 
-import os
-SERVER_URL = os.getenv("SERVER_URL", "https://digital-doctor-zwr7.onrender.com")
+ESP_IP = os.getenv("ESP_IP", "192.168.0.100")
+VK_USER_ID = int(os.getenv("VK_USER_ID", "0"))
+SERVER_URL = os.getenv("SERVER_URL", "https://digital-doctor-zwr7.onrender.com").rstrip("/")
 
 frames_buffer = []
 BATCH_SIZE = 100
 
 CURRENT_SESSION_ID = None
+
+ai_model = InteractiveDoctorAI()
+model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ai_model.pkl")
+if os.path.exists(model_path):
+    ai_model.load(model_path)
+    logger.info("AI model loaded: %d examples", len(ai_model.X_train))
 
 
 def calculate_bpm(raw_pulse):
@@ -170,7 +154,7 @@ def send_to_server(frames):
     def _send():
         try:
             payload = {
-                "user_id": 396418403,
+                "user_id": VK_USER_ID,
                 "session_id": CURRENT_SESSION_ID,
                 "frames": frames,
             }
@@ -178,7 +162,7 @@ def send_to_server(frames):
             if response.status_code == 200:
                 logger.info("Sent %d frames to server successfully", len(frames))
             else:
-                logger.error("Server error: %d", response.status_code)
+                logger.error("Server error: %d %s", response.status_code, response.text)
         except Exception as e:
             logger.error("Failed to send frames to server: %s", e)
 
@@ -195,62 +179,18 @@ class SensorFrame:
     ts: float
 
 
-class DrHouseServer:
-    def __init__(self, patient_id: str = "Patient_001", esp_ip: str = "192.168.0.100"):
-        self.patient_id = patient_id
-        self.esp_ip = esp_ip
-        self.ai = DigitalDoctorAI()
-        self.sessions = self.load_sessions()
-        self.current_session = {
-            "start_time": datetime.now().isoformat(),
-            "frames": [],
-            "diagnoses": [],
-        }
-
-    def load_sessions(self) -> Dict:
-        try:
-            with open(SESSION_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {}
-
-    def save_sessions(self):
-        with open(SESSION_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.sessions, f, indent=2, ensure_ascii=False)
-
-    def process_frame(self, frame: SensorFrame) -> Dict:
-        result = self.ai.predict_state(
-            pulse=frame.pulse, rhythm=frame.rhythm, emg=frame.emg, alpha=frame.alpha, beta=frame.beta
-        )
-        self.current_session["frames"].append(asdict(frame))
-        self.current_session["diagnoses"].append(result)
-        return result
-
-    def end_session(self) -> str:
-        if not self.current_session["frames"]:
-            return "No data for analysis"
-        last_frame = self.current_session["frames"][-1]
-        report = self.ai.generate_draft_report(self.patient_id, last_frame)
-        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.sessions[session_id] = {
-            "patient_id": self.patient_id, "session": self.current_session,
-        }
-        self.save_sessions()
-        self.current_session = {"start_time": datetime.now().isoformat(), "frames": [], "diagnoses": []}
-        return report
-
-
 def bar(value: int, max_val: int = 100, width: int = 20) -> str:
     filled = min(max(0, round(value / max_val * width)), width)
     return f"[{'#' * filled}{'.' * (width - filled)}]"
 
 
 def render_frame(frame: SensorFrame, diagnosis: Dict, frame_num: int):
+    state = diagnosis["state"]
     state_color_map = {
-        "Normal": "green", "Recovery": "green", "Tension": "yellow",
-        "Fatigue": "yellow", "Stress": "red", "Overload": "red", "Arrhythmia (AF)": "magenta",
+        "Норма": "green", "Восстановление": "green", "Напряжение": "yellow",
+        "Усталость": "yellow", "Стресс": "red", "Перегрузка": "red", "Аритмия": "magenta",
     }
-    state_color = state_color_map.get(diagnosis['state'], "white")
+    state_color = state_color_map.get(state, "white")
     colors = {
         'red': '\033[91m', 'green': '\033[92m', 'yellow': '\033[93m',
         'magenta': '\033[95m', 'cyan': '\033[96m', 'white': '\033[97m', 'reset': '\033[0m',
@@ -258,38 +198,29 @@ def render_frame(frame: SensorFrame, diagnosis: Dict, frame_num: int):
     print("\033[2J\033[H", end="")
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║           DIGITAL DOCTOR - TELEMETRY                        ║
+║           DIGITAL DOCTOR - ТЕЛЕМЕТРИЯ                       ║
 ╠══════════════════════════════════════════════════════════════╣
-║  PULSE:    {bar(frame.pulse, 200)} {frame.pulse:>3} BPM  ║
-║  RHYTHM:   {frame.rhythm:<12}                            ║
-║  EMG:      {bar(frame.emg)} {frame.emg:>3}%              ║
-║  ALPHA:    {bar(frame.alpha)} {frame.alpha:>3}%          ║
-║  BETA:     {bar(frame.beta)} {frame.beta:>3}%            ║
+║  ПУЛЬС:    {bar(frame.pulse, 200)} {frame.pulse:>3} BPM    ║
+║  РИТМ:     {frame.rhythm:<12}                              ║
+║  ЭМГ:      {bar(frame.emg)} {frame.emg:>3}%                ║
+║  АЛЬФА:    {bar(frame.alpha)} {frame.alpha:>3}%            ║
+║  БЕТА:     {bar(frame.beta)} {frame.beta:>3}%              ║
 ╠══════════════════════════════════════════════════════════════╣
-║  AI DIAGNOSIS:                                              ║
-║  -> State: {colors.get(state_color, '')}{diagnosis['state']}{colors['reset']}║
-║  -> Confidence: {diagnosis['confidence'] * 100:.0f}%        ║
+║  ДИАГНОЗ ИИ:                                                ║
+║  -> {colors.get(state_color, '')}{state}{colors['reset']}                           ║
+║  -> Уверенность: {diagnosis['confidence'] * 100:.0f}%       ║
 ╠══════════════════════════════════════════════════════════════╣
-║  Buffer: {len(frames_buffer)}/{BATCH_SIZE} | Frame #{frame_num} | VK Session: #{CURRENT_SESSION_ID}
+║  Буфер: {len(frames_buffer)}/{BATCH_SIZE} | Кадр #{frame_num} | VK сессия: #{CURRENT_SESSION_ID}
 ╚══════════════════════════════════════════════════════════════╝
 """)
 
 
-def console_handler(server: DrHouseServer):
+def console_handler():
     while True:
         cmd = input().strip().upper()
         if cmd == "Q":
-            save = input("Save session? (y/n): ").lower()
-            if save == 'y':
-                server.save_sessions()
-            print("Goodbye!")
+            print("Выход...")
             break
-        elif cmd == "S":
-            server.save_sessions()
-            logger.info("Session saved")
-        elif cmd == "R":
-            report = server.end_session()
-            print(f"\nREPORT:\n{report}")
         elif cmd in ["ALL", "PLS", "EMG", "EEG", "GSR", "STATS"]:
             send_mode_command(cmd)
 
@@ -301,35 +232,35 @@ if __name__ == "__main__":
         datefmt="%H:%M:%S",
     )
 
+    if not VK_USER_ID:
+        logger.error("VK_USER_ID not set in .env. Set it to your VK user ID.")
+        exit(1)
+
     print("""
     ╔══════════════════════════════════════════════════════════════╗
-    ║        DrHouse - Digital Doctor (UDP Server) v3.2            ║
-    ║        Receiving binary data from ESP32 + AI diagnosis       ║
+    ║        Digital Doctor — UDP приёмник                        ║
+    ║        Приём бинарных данных с ESP32 + диагностика ИИ       ║
     ╚══════════════════════════════════════════════════════════════╝
     """)
 
-    ESP_IP = input("ESP32 IP address (Enter = 192.168.0.100): ").strip()
-    if not ESP_IP:
-        ESP_IP = "192.168.0.100"
-
-    patient_id = input("Patient ID (Enter for Patient_001): ").strip() or "Patient_001"
+    esp_input = input(f"IP адрес ESP32 (Enter = {ESP_IP}): ").strip()
+    if esp_input:
+        ESP_IP = esp_input
 
     while True:
         try:
-            CURRENT_SESSION_ID = int(input("Enter VK bot session ID: ").strip())
+            CURRENT_SESSION_ID = int(input("Введите ID сессии VK бота: ").strip())
             break
         except ValueError:
-            print("Error! ID must be a number.")
+            print("Ошибка! ID должен быть числом.")
 
-    server = DrHouseServer(patient_id=patient_id, esp_ip=ESP_IP)
-
-    threading.Thread(target=console_handler, args=(server,), daemon=True).start()
+    threading.Thread(target=console_handler, daemon=True).start()
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("0.0.0.0", UDP_SEND_PORT))
     sock.settimeout(1.0)
 
-    logger.info("Listening for ESP data on port %d...", UDP_SEND_PORT)
+    logger.info("Ожидание данных ESP на порту %d...", UDP_SEND_PORT)
     frame_count = 0
     last_send_time = 0
     send_interval = 1.0
@@ -364,7 +295,7 @@ if __name__ == "__main__":
                 )
 
                 frame_count += 1
-                diagnosis = server.process_frame(frame)
+                diagnosis = ai_model.predict(frame.pulse, frame.rhythm, frame.emg, frame.alpha, frame.beta)
 
                 frames_buffer.append(asdict(frame))
 
@@ -382,9 +313,9 @@ if __name__ == "__main__":
             except socket.timeout:
                 pass
             except Exception as e:
-                logger.error("Error processing packet: %s", e)
+                logger.error("Ошибка обработки пакета: %s", e)
 
     except KeyboardInterrupt:
-        logger.info("Server stopped by user.")
+        logger.info("Сервер остановлен пользователем.")
     finally:
         sock.close()

@@ -202,15 +202,15 @@ def approve_report():
         conn = get_db()
         cursor = conn.cursor()
 
-        cursor.execute(
-            "UPDATE reports SET status = 'approved' WHERE session_id = ?",
-            (session_id,)
-        )
+        cursor.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,))
+        session_row = cursor.fetchone()
+        patient_id = session_row["user_id"] if session_row else None
 
         cursor.execute("SELECT raw_data FROM sessions WHERE id = ?", (session_id,))
         session_row = cursor.fetchone()
 
         trained = False
+        final_diagnosis = None
         if session_row and session_row["raw_data"]:
             frames = json.loads(session_row["raw_data"])
             if frames:
@@ -224,12 +224,13 @@ def approve_report():
 
                 if report_row and report_row["ai_conclusion"]:
                     ai_text = report_row["ai_conclusion"]
-                    detected_state = "Normal"
+                    detected_state = "Норма"
                     for s in ["Норма", "Напряжение", "Усталость", "Восстановление", "Стресс", "Перегрузка", "Аритмия"]:
                         if s in ai_text:
                             detected_state = s
                             break
 
+                    final_diagnosis = detected_state
                     teach_model(
                         pulse=last_frame["pulse"],
                         rhythm=last_frame["rhythm"],
@@ -241,12 +242,19 @@ def approve_report():
                     trained = True
                     logger.info("Model retrained: session %d -> %s", session_id, detected_state)
 
+        cursor.execute(
+            "UPDATE reports SET doctor_conclusion = ?, status = 'approved' WHERE session_id = ?",
+            (f"Подтверждено врачом: {final_diagnosis}", session_id)
+        )
+
         conn.commit()
         conn.close()
         return jsonify({
             "status": "success",
             "message": "Diagnosis confirmed, AI trained",
             "trained": trained,
+            "patient_id": patient_id,
+            "final_diagnosis": final_diagnosis,
         })
 
     except Exception as e:
@@ -266,6 +274,10 @@ def teach_model_endpoint():
 
         conn = get_db()
         cursor = conn.cursor()
+
+        cursor.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,))
+        session_row = cursor.fetchone()
+        patient_id = session_row["user_id"] if session_row else None
 
         cursor.execute(
             "UPDATE reports SET doctor_conclusion = ?, status = 'approved' WHERE session_id = ?",
@@ -294,7 +306,12 @@ def teach_model_endpoint():
 
         conn.commit()
         conn.close()
-        return jsonify({"status": "success", "trained": trained})
+        return jsonify({
+            "status": "success",
+            "trained": trained,
+            "patient_id": patient_id,
+            "final_diagnosis": correct_state,
+        })
 
     except Exception as e:
         logger.error("teach error: %s", e)

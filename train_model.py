@@ -9,20 +9,20 @@ ai = InteractiveDoctorAI()
 examples = []
 
 for _ in range(40):
-    examples.append((72, "синусовый", 12, 65, 30, "Normal"))
-    examples.append((75, "синусовый", 15, 60, 35, "Normal"))
-    examples.append((78, "синусовый", 10, 70, 25, "Normal"))
+    examples.append((72, "синусовый", 12, 65, 30, "Норма"))
+    examples.append((75, "синусовый", 15, 60, 35, "Норма"))
+    examples.append((78, "синусовый", 10, 70, 25, "Норма"))
 
 for _ in range(80):
-    examples.append((80, "синусовый", 50, 30, 70, "Stress"))
-    examples.append((82, "синусовый", 55, 28, 72, "Stress"))
-    examples.append((78, "синусовый", 48, 32, 68, "Stress"))
-    examples.append((85, "синусовый", 60, 25, 75, "Stress"))
-    examples.append((88, "синусовый", 62, 20, 80, "Stress"))
+    examples.append((80, "синусовый", 50, 30, 70, "Стресс"))
+    examples.append((82, "синусовый", 55, 28, 72, "Стресс"))
+    examples.append((78, "синусовый", 48, 32, 68, "Стресс"))
+    examples.append((85, "синусовый", 60, 25, 75, "Стресс"))
+    examples.append((88, "синусовый", 62, 20, 80, "Стресс"))
 
 for _ in range(20):
-    examples.append((150, "аритмичный", 35, 30, 45, "Arrhythmia"))
-    examples.append((160, "аритмичный", 40, 25, 50, "Arrhythmia"))
+    examples.append((150, "аритмичный", 35, 30, 45, "Аритмия"))
+    examples.append((160, "аритмичный", 40, 25, 50, "Аритмия"))
 
 for pulse, rhythm, emg, alpha, beta, state in examples:
     rhythm_val = 1 if rhythm.lower() in ["sinus", "синусовый"] else 0
