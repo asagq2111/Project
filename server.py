@@ -47,6 +47,40 @@ def session_status(session_id):
         return jsonify({"status": row["status"]})
     return jsonify({"status": "not_found"}), 404
 
+@app.route('/start_session', methods=['POST'])
+def start_session():
+    try:
+        data = request.get_json()
+
+        user_id = data.get("user_id")
+
+        if not user_id:
+            return jsonify({"error": "Missing user_id"}), 400
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            INSERT INTO sessions (user_id, status)
+            VALUES (?, 'waiting_data')
+            """,
+            (user_id,)
+        )
+
+        session_id = cursor.lastrowid
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "status": "success",
+            "session_id": session_id
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/get_report/<int:session_id>', methods=['GET'])
 def get_report(session_id):
     conn = get_db()

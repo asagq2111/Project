@@ -63,7 +63,7 @@ class InteractiveDoctorAI:
         ]
         
         for pulse, rhythm, emg, alpha, beta, state in base_examples:
-            rhythm_val = 1 if rhythm == "sinus" else 0
+            rhythm_val = 1 if rhythm in ["sinus", "синусовый"] else 0
             self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
             self.y_train.append(self.STATES.index(state))
         
@@ -104,7 +104,7 @@ class InteractiveDoctorAI:
         if not self.is_fitted or self.model is None:
             return {"state": "Недостаточно данных", "confidence": 0, "need_training": True}
         
-        rhythm_val = 1 if rhythm.lower() == "sinus" else 0
+        rhythm_val = 1 if rhythm.lower() in ["sinus", "синусовый"] else 0
         features = np.array([[pulse, rhythm_val, emg, alpha, beta]])
         features_scaled = self.scaler.transform(features)
         
@@ -124,7 +124,7 @@ class InteractiveDoctorAI:
             print(f"❌ Неизвестное состояние: {correct_state}")
             return False
         
-        rhythm_val = 1 if rhythm.lower() == "sinus" else 0
+        rhythm_val = 1 if rhythm.lower() in ["sinus", "синусовый"] else 0
         self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
         self.y_train.append(self.STATES.index(correct_state))
         
@@ -164,7 +164,7 @@ class InteractiveDoctorAI:
                     alpha = int(alpha * 100 / total)
                     beta = 100 - alpha
                 
-                rhythm_val = 1 if rhythm == "sinus" else 0
+                rhythm_val = 1 if rhythm in ["sinus", "синусовый"] else 0
                 self.X_train.append([pulse, rhythm_val, emg, alpha, beta])
                 self.y_train.append(self.STATES.index(state))
                 added += 1

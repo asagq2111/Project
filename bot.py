@@ -344,24 +344,33 @@ try:
 
             elif text == "🤖 Начать обследование" and user_role == "patient":
 
-                session_id_placeholder = int(time.time()) % 100000
+                res = call_server(
+                    "start_session",
+                    method="POST",
+                    data={"user_id": user_id}
+                )
+
+                if res.get("status") != "success":
+                    vk.messages.send(
+                        user_id=user_id,
+                        message="❌ Не удалось создать сессию обследования.",
+                        random_id=get_random_id()
+                    )
+                    continue
+
+                session_id_placeholder = res["session_id"]
 
                 vk.messages.send(
                     user_id=user_id,
                     message=(
                         f"⏳ Сессия обследования создана.\n\n"
-                        f"🔑 ТОКЕН СЕССИИ: {session_id_placeholder}\n\n"
+                        f"🔑 ID СЕССИИ: {session_id_placeholder}\n\n"
                         f"Введите этот номер в эмулятор."
                     ),
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id()
                 )
 
-                threading.Thread(
-                    target=check_session_status,
-                    args=(vk, user_id, session_id_placeholder),
-                    daemon=True
-                ).start()
 
             elif text == "📊 Моя статистика" and user_role == "patient":
 
