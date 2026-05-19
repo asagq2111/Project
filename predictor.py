@@ -48,4 +48,5 @@ def get_statistics():
         "total_examples": len(ai.X_train),
         "states": ai.STATES,
         "is_fitted": ai.is_fitted,
+        "training_history": ai.training_history,
     }

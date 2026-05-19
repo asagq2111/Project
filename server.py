@@ -141,7 +141,49 @@ def get_report(session_id):
 
 @app.route('/stats', methods=['GET'])
 def stats():
-    return jsonify(get_statistics())
+    data = get_statistics()
+    history = data.get("training_history", [])
+    accuracy = (history[-1]["accuracy"] * 100) if history else None
+    return jsonify({
+        "total_examples": data["total_examples"],
+        "states": data["states"],
+        "is_fitted": data["is_fitted"],
+        "accuracy_percent": round(accuracy, 1) if accuracy is not None else None,
+        "retrain_count": len(history),
+    })
+
+
+@app.route('/patient_stats/<int:vk_id>', methods=['GET'])
+def patient_stats(vk_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, status, created_at FROM sessions WHERE user_id = ? ORDER BY id DESC LIMIT 20",
+        (vk_id,)
+    )
+    sessions = cursor.fetchall()
+
+    result = []
+    for s in sessions:
+        cursor.execute(
+            "SELECT ai_conclusion, doctor_conclusion, status FROM reports WHERE session_id = ?",
+            (s["id"],)
+        )
+        report = cursor.fetchone()
+        result.append({
+            "session_id": s["id"],
+            "status": s["status"],
+            "created_at": s["created_at"],
+            "ai_conclusion": report["ai_conclusion"] if report else None,
+            "doctor_conclusion": report["doctor_conclusion"] if report else None,
+            "report_status": report["status"] if report else None,
+        })
+
+    conn.close()
+    return jsonify({
+        "sessions": result,
+        "total": len(result),
+    })
 
 
 @app.route('/upload_batch', methods=['POST'])

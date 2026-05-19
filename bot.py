@@ -376,9 +376,28 @@ try:
                 ).start()
 
             elif text == "Моя статистика" and user_role == "patient":
+                stats_res = call_server(f"patient_stats/{user_id}", method="GET")
+                sessions = stats_res.get("sessions", [])
+
+                if not sessions:
+                    msg = "У вас пока нет завершённых обследований."
+                else:
+                    lines = ["📊 ВАША СТАТИСТИКА", "═" * 20]
+                    for s in sessions[:5]:
+                        lines.append(f"\n🔹 Сессия #{s['session_id']}")
+                        lines.append(f"   Статус: {s['status']}")
+                        if s.get("doctor_conclusion"):
+                            lines.append(f"   Заключение врача: {s['doctor_conclusion']}")
+                        elif s.get("ai_conclusion"):
+                            lines.append(f"   ИИ: {s['ai_conclusion']}")
+                        lines.append(f"   Дата: {s['created_at']}")
+                    if len(sessions) > 5:
+                        lines.append(f"\n... и ещё {len(sessions) - 5}")
+                    msg = "\n".join(lines)
+
                 vk.messages.send(
                     user_id=user_id,
-                    message="Статистика находится в разработке.",
+                    message=msg,
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -387,8 +406,18 @@ try:
                 stats_res = call_server("stats", method="GET")
                 total_examples = stats_res.get("total_examples", 0)
                 states_str = ", ".join(stats_res.get("states", []))
+                accuracy = stats_res.get("accuracy_percent")
+                retrain_count = stats_res.get("retrain_count", 0)
 
-                msg = f"СТАТИСТИКА ИИ:\nВсего примеров: {total_examples}\nСостояния: {states_str}"
+                msg = (
+                    f"📊 СТАТИСТИКА ИИ\n"
+                    f"═" * 20 + "\n"
+                    f"Всего примеров: {total_examples}\n"
+                    f"Состояния: {states_str}\n"
+                    f"Дообучений: {retrain_count}\n"
+                )
+                if accuracy is not None:
+                    msg += f"Точность на своей выборке: {accuracy}%"
 
                 vk.messages.send(
                     user_id=user_id,
