@@ -69,37 +69,37 @@ def call_server(endpoint, method="GET", data=None):
 
 def get_role_keyboard():
     kb = VkKeyboard(one_time=True)
-    kb.add_button("Patient", color=VkKeyboardColor.PRIMARY)
-    kb.add_button("Doctor", color=VkKeyboardColor.NEGATIVE)
+    kb.add_button("Пациент", color=VkKeyboardColor.PRIMARY)
+    kb.add_button("Врач", color=VkKeyboardColor.NEGATIVE)
     return kb.get_keyboard()
 
 
 def get_patient_keyboard():
     kb = VkKeyboard(one_time=False)
-    kb.add_button("Start examination", color=VkKeyboardColor.POSITIVE)
+    kb.add_button("Начать обследование", color=VkKeyboardColor.POSITIVE)
     kb.add_line()
-    kb.add_button("My statistics", color=VkKeyboardColor.SECONDARY)
-    kb.add_button("Change role", color=VkKeyboardColor.SECONDARY)
+    kb.add_button("Моя статистика", color=VkKeyboardColor.SECONDARY)
+    kb.add_button("Сменить роль", color=VkKeyboardColor.SECONDARY)
     return kb.get_keyboard()
 
 
 def get_doctor_keyboard():
     kb = VkKeyboard(one_time=False)
-    kb.add_button("AI statistics", color=VkKeyboardColor.PRIMARY)
+    kb.add_button("Статистика ИИ", color=VkKeyboardColor.PRIMARY)
     kb.add_line()
-    kb.add_button("Change role", color=VkKeyboardColor.SECONDARY)
+    kb.add_button("Сменить роль", color=VkKeyboardColor.SECONDARY)
     return kb.get_keyboard()
 
 
 def get_decision_keyboard(session_id):
     kb = VkKeyboard(inline=True)
     kb.add_button(
-        "Confirm",
+        "Подтвердить",
         color=VkKeyboardColor.POSITIVE,
         payload={"command": "approve_conclusion", "session_id": session_id},
     )
     kb.add_button(
-        "Correct",
+        "Исправить",
         color=VkKeyboardColor.NEGATIVE,
         payload={"command": "show_fix_menu", "session_id": session_id},
     )
@@ -108,7 +108,7 @@ def get_decision_keyboard(session_id):
 
 def get_fix_keyboard(session_id):
     kb = VkKeyboard(inline=True)
-    states = ["Normal", "Tension", "Fatigue", "Recovery", "Stress", "Overload", "Arrhythmia"]
+    states = ["Норма", "Напряжение", "Усталость", "Восстановление", "Стресс", "Перегрузка", "Аритмия"]
 
     for i, state in enumerate(states):
         kb.add_button(
@@ -134,12 +134,12 @@ def check_session_status(vk_client, user_id, session_id):
 
             if res.get("status") == "data_received":
                 report_res = call_server(f"get_report/{session_id}")
-                ai_text = report_res.get("ai_conclusion", "Analysis completed successfully.")
+                ai_text = report_res.get("ai_conclusion", "Анализ успешно завершён.")
 
                 msg_patient = (
-                    f"ESP data received successfully!\n\n"
-                    f"AI preliminary conclusion:\n{ai_text}\n\n"
-                    f"Status: Report sent to the attending physician for moderation."
+                    f"Данные ESP успешно получены!\n\n"
+                    f"Предварительное заключение ИИ:\n{ai_text}\n\n"
+                    f"Статус: Отчёт отправлен лечащему врачу на модерацию."
                 )
                 vk_client.messages.send(
                     user_id=user_id,
@@ -150,11 +150,11 @@ def check_session_status(vk_client, user_id, session_id):
 
                 users = load_users()
                 msg_doctor = (
-                    f"New examination data received!\n"
-                    f"Patient ID: {user_id}\n"
-                    f"Session: #{session_id}\n\n"
-                    f"AI verdict:\n{ai_text}\n\n"
-                    f"Please review and confirm/correct the result to train the model."
+                    f"Получены новые данные обследования!\n"
+                    f"ID пациента: {user_id}\n"
+                    f"Сессия: #{session_id}\n\n"
+                    f"Заключение ИИ:\n{ai_text}\n\n"
+                    f"Пожалуйста, проверьте и подтвердите/исправьте результат для обучения модели."
                 )
 
                 for uid, info in users.items():
@@ -177,7 +177,7 @@ def check_session_status(vk_client, user_id, session_id):
 
     vk_client.messages.send(
         user_id=user_id,
-        message="ESP data was not received within 5 minutes. Session timed out.",
+        message="Данные ESP не получены в течение 5 минут. Сессия завершена по тайм-ауту.",
         keyboard=get_patient_keyboard(),
         random_id=get_random_id(),
     )
@@ -200,7 +200,7 @@ try:
                 save_users(users_db)
                 vk.messages.send(
                     user_id=user_id,
-                    message="Welcome to Digital Doctor! Who are you?",
+                    message="Добро пожаловать в Digital Doctor! Кто вы?",
                     keyboard=get_role_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -233,9 +233,9 @@ try:
                         res = call_server("approve", method="POST", data={"session_id": sid})
 
                         if res.get("status") == "success":
-                            msg = f"Thank you! Diagnosis for session #{sid} confirmed. AI recorded this case as reference."
+                            msg = f"Спасибо! Диагноз для сессии #{sid} подтверждён. ИИ записал этот случай как эталонный."
                         else:
-                            msg = f"Failed to send confirmation to server: {res.get('error', 'server error')}"
+                            msg = f"Не удалось отправить подтверждение на сервер: {res.get('error', 'server error')}"
 
                         vk.messages.send(
                             user_id=user_id,
@@ -248,7 +248,7 @@ try:
                     elif command == "show_fix_menu":
                         vk.messages.send(
                             user_id=user_id,
-                            message=f"Select correct diagnosis for session #{sid}:",
+                            message=f"Выберите правильный диагноз для сессии #{sid}:",
                             keyboard=get_fix_keyboard(sid),
                             random_id=get_random_id(),
                         )
@@ -263,9 +263,9 @@ try:
                         )
 
                         if teach_res.get("trained"):
-                            msg = f"Model successfully retrained!\n\nSession: #{sid}\nCorrect diagnosis: {correct_state}"
+                            msg = f"Модель успешно переобучена!\n\nСессия: #{sid}\nПравильный диагноз: {correct_state}"
                         else:
-                            msg = f"Retraining error: {teach_res.get('error', 'unknown error')}"
+                            msg = f"Ошибка переобучения: {teach_res.get('error', 'unknown error')}"
 
                         vk.messages.send(
                             user_id=user_id,
@@ -278,43 +278,43 @@ try:
                 except Exception as ex:
                     logger.error("Payload handling error: %s", ex)
 
-            if text == "Patient":
+            if text == "Пациент":
                 users_db[str_uid]["role"] = "patient"
                 save_users(users_db)
                 vk.messages.send(
                     user_id=user_id,
-                    message="You are logged in as Patient.",
+                    message="Вы вошли как пациент.",
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id(),
                 )
 
-            elif text == "Doctor":
+            elif text == "Врач":
                 users_db[str_uid]["role"] = "doctor"
                 save_users(users_db)
                 vk.messages.send(
                     user_id=user_id,
-                    message="You are logged in as Doctor.",
+                    message="Вы вошли как врач.",
                     keyboard=get_doctor_keyboard(),
                     random_id=get_random_id(),
                 )
 
-            elif text == "Change role":
+            elif text == "Сменить роль":
                 users_db[str_uid]["role"] = None
                 save_users(users_db)
                 vk.messages.send(
                     user_id=user_id,
-                    message="Select your role again:",
+                    message="Выберите роль снова:",
                     keyboard=get_role_keyboard(),
                     random_id=get_random_id(),
                 )
 
-            elif text == "Start examination" and user_role == "patient":
+            elif text == "Начать обследование" and user_role == "patient":
                 res = call_server("start_session", method="POST", data={"user_id": user_id})
 
                 if res.get("status") != "success":
                     vk.messages.send(
                         user_id=user_id,
-                        message="Failed to create examination session.",
+                        message="Не удалось создать сессию обследования.",
                         random_id=get_random_id(),
                     )
                     continue
@@ -322,7 +322,7 @@ try:
                 session_id = res["session_id"]
                 vk.messages.send(
                     user_id=user_id,
-                    message=f"Examination session created.\n\nSession ID: {session_id}\n\nEnter this ID in the emulator.",
+                    message=f"Сессия обследования создана.\n\nID сессии: {session_id}\n\nВведите этот ID в эмуляторе.",
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id(),
                 )
@@ -333,20 +333,20 @@ try:
                     daemon=True,
                 ).start()
 
-            elif text == "My statistics" and user_role == "patient":
+            elif text == "Моя статистика" and user_role == "patient":
                 vk.messages.send(
                     user_id=user_id,
-                    message="Statistics feature is under development.",
+                    message="Статистика находится в разработке.",
                     keyboard=get_patient_keyboard(),
                     random_id=get_random_id(),
                 )
 
-            elif text == "AI statistics" and user_role == "doctor":
+            elif text == "Статистика ИИ" and user_role == "doctor":
                 stats_res = call_server("stats", method="GET")
                 total_examples = stats_res.get("total_examples", 0)
                 states_str = ", ".join(stats_res.get("states", []))
 
-                msg = f"AI STATISTICS:\nTotal examples: {total_examples}\nStates: {states_str}"
+                msg = f"СТАТИСТИКА ИИ:\nВсего примеров: {total_examples}\nСостояния: {states_str}"
 
                 vk.messages.send(
                     user_id=user_id,
@@ -363,7 +363,7 @@ try:
                 )
                 vk.messages.send(
                     user_id=user_id,
-                    message="Command not recognized.",
+                    message="Команда не распознана.",
                     keyboard=current_kb,
                     random_id=get_random_id(),
                 )

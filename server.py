@@ -225,7 +225,7 @@ def approve_report():
                 if report_row and report_row["ai_conclusion"]:
                     ai_text = report_row["ai_conclusion"]
                     detected_state = "Normal"
-                    for s in ["Normal", "Tension", "Fatigue", "Recovery", "Stress", "Overload", "Arrhythmia"]:
+                    for s in ["Норма", "Напряжение", "Усталость", "Восстановление", "Стресс", "Перегрузка", "Аритмия"]:
                         if s in ai_text:
                             detected_state = s
                             break
@@ -269,7 +269,7 @@ def teach_model_endpoint():
 
         cursor.execute(
             "UPDATE reports SET doctor_conclusion = ?, status = 'approved' WHERE session_id = ?",
-            (f"Corrected by doctor: {correct_state}", session_id)
+            (f"Исправлено врачом: {correct_state}", session_id)
         )
 
         cursor.execute("SELECT raw_data FROM sessions WHERE id = ?", (session_id,))

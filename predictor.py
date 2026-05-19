@@ -29,11 +29,11 @@ def get_diagnosis_text(pulse, rhythm, emg, alpha, beta):
     confidence_pct = result["confidence"] * 100
 
     if confidence_pct < 50:
-        warning = "\nLow model confidence. Doctor review required."
+        warning = "\nНизкая уверенность модели. Требуется проверка врача."
     else:
         warning = ""
 
-    return f"Diagnosis: {result['state']} (confidence: {confidence_pct:.1f}%){warning}"
+    return f"Диагноз: {result['state']} (уверенность: {confidence_pct:.1f}%){warning}"
 
 
 def teach_model(pulse, rhythm, emg, alpha, beta, correct_state):

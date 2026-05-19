@@ -12,13 +12,13 @@ logger = logging.getLogger(__name__)
 
 class InteractiveDoctorAI:
     STATES = [
-        "Normal",
-        "Tension",
-        "Fatigue",
-        "Recovery",
-        "Stress",
-        "Overload",
-        "Arrhythmia",
+        "Норма",
+        "Напряжение",
+        "Усталость",
+        "Восстановление",
+        "Стресс",
+        "Перегрузка",
+        "Аритмия",
     ]
 
     def __init__(self):
